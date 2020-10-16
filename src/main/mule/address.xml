@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<flow name="contactInsertFlow1" doc:id="f2d889fc-60fa-424b-80b4-3c8bafb7ab5b" >
+		<try doc:name="Try" doc:id="fe30eb85-6821-49f3-9790-f807b5a0eac4">
+						<salesforce:query doc:name="QueryContactFromProd" doc:id="d53a5d89-dfa9-4618-b578-9c373d63e3fa" config-ref="Salesforce_Config_Portal_Uat">
+						<salesforce:salesforce-query><![CDATA[SELECT LastName,Email,Id FROM Contact where AccountId=':accountId']]></salesforce:salesforce-query>
+						<salesforce:parameters><![CDATA[#[output application/java
+---
+{
+	"accountId" : vars.accountId
+}]]]></salesforce:parameters>
+					</salesforce:query>
+			<ee:transform doc:name="Transform Message" doc:id="4a19e331-643b-4f82-a590-26a423f3c025">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload map {
+	LastName: $.LastName,
+	Name: $.Name,
+	Email: $.Email,
+	AccountId: vars.salesAccountId,
+	"External_Contact_Id__c": $.Id,
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="95028d02-065d-4792-8f28-5a858bb35875" message="response paylod before contact : #[payload]" />
+						<salesforce:upsert doc:name="UpsertContact" doc:id="2f02d481-2283-4ed2-9932-87d7d1fd66d8" config-ref="Salesforce_Config_docs" objectType="Contact" externalIdFieldName="External_Contact_Id__c" target="ContactId" targetValue="#[payload.items[0].payload.id]" />
+						<error-handler>
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="28691e3b-82ca-4d8f-becd-1fbb4f506b2f" type="ANY">
+								<logger level="INFO" doc:name="Logger" doc:id="ac8e6670-69fd-4415-8eea-bdffd2602e9a" message="NO CONTACTS FOUND OR CONNECTION ISSUE OCCURED" />
+							</on-error-continue>
+						</error-handler>
+					</try>
+	</flow>
+	<flow name="PatientConnect__PC_Address__c_BatchFlow" doc:id="794d5e92-3deb-4948-90d7-b5b0384e93ce" >
+		<batch:job jobName="PatientConnect__PC_Address__c_job" doc:id="6e23c9c2-f7fd-4d78-aee2-067fe9b3c5c0" maxFailedRecords="-1">
+			<batch:process-records>
+				<batch:step name="GettingContactsWithId" doc:id="673b9789-b9bb-40a8-b560-d6604d7e16d2" acceptPolicy="ALL">
+					<ee:transform doc:name="Transform Message" doc:id="7157e84f-f820-4a13-be26-fce76bf2c122">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="accountId"><![CDATA[%dw 2.0
+output application/java
+---
+payload.Id]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<ee:transform doc:name="Transform Message" doc:id="69309c81-bd98-4254-afcf-931757e2561b">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+[(payload  - ('LastModifiedDate') -'Id' - 'Name'- 'CreatedDate' - 'CreatedById' - 'LastModifiedById' - 'SystemModstamp' - 'LastActivityDate' - 'LastViewedDate' - 'PatientConnect__PC_Account__c' ++ {
+	PatientConnect__PC_Account___r: {
+		'type': 'Account',
+		 HealthCloudGA__SourceSystemId__c: "0010m00000erHp7AAE"
+	}
+}) mapObject {
+	($$) : ($ as Boolean) default $
+}]]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<salesforce:upsert doc:name="UpsertAddresses (PatientConnect__PC_Address__c)" doc:id="33d271a4-46aa-4ecb-94db-9fd94f54df2b" config-ref="Salesforce_Config_docs" objectType="PatientConnect__PC_Address__c" externalIdFieldName="Id"/>
+					<logger level="INFO" doc:name="Logger" doc:id="2328d360-3c0b-45b3-bd97-83796d0f84be" message="old id : #[vars.accountId]  ==== #[vars.salesAccountId] =====  #[vars.ContactId]" />
+				</batch:step>
+			</batch:process-records>
+		</batch:job>
+	</flow>
+	<flow name="evr-sales-sync-Addresses" doc:id="87ec75df-7b27-45ea-9ec5-8b8b9f336a14" >
+		<http:listener doc:name="Listener" doc:id="81b84deb-52b1-4027-936c-f5992fd41dc0" config-ref="HTTP_Listener_config" path="sales1"/>
+		<os:retrieve doc:name="Retrieve" doc:id="23ab0ad2-fe6d-4fbc-9052-5dd7ba4f030a" key="recentUpdatedDate" objectStore="UpdateTime_Object_store" target="recentUpdatedDate">
+			<os:default-value ><![CDATA[2020-08-11T06:52:18.000Z]]></os:default-value>
+		</os:retrieve>
+		<salesforce:query doc:name="Portal UAT Query" doc:id="4cd98a7a-e51a-4baa-bc74-464ad266202b" config-ref="Salesforce_Config_Portal_Uat">
+			<salesforce:salesforce-query ><![CDATA[select Id,LastModifiedDate,Name,PatientConnect__PC_Account__c,PatientConnect__PC_Address_1__c,PatientConnect__PC_City__c,PatientConnect__PC_Primary_Address__c,PHX_Is_Locked__c from PatientConnect__PC_Address__c where LastModifiedDate > :lastModifiedDate ORDER BY LastModifiedDate ASC]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"lastModifiedDate" : vars.recentUpdatedDate
+}]]]></salesforce:parameters>
+		
+</salesforce:query>
+		<os:store doc:name="Store" doc:id="7a60cee3-72c0-40a3-a4ea-c74f6c90d81c" key="recentUpdatedDate" objectStore="UpdateTime_Object_store" failOnNullValue="false">
+			<os:value ><![CDATA[#[max(payload map $.LastModifiedDate)]]]></os:value>
+		</os:store>
+		<flow-ref doc:name="PatientConnect__PC_Address__c Flow Reference" doc:id="9fbc28c9-dcd7-44ac-b744-b9af302fde19" name="PatientConnect__PC_Address__c_BatchFlow" />
+		<ee:transform doc:name="Transform Message" doc:id="675b7e4c-b5ae-4f60-bb46-51739374655e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	
+</flow>
+<!-- 	<flow name="evr-sales-sync-apiFlow" doc:id="fc5828e0-fdad-42e1-8f5d-288a3529d6f0" >
+		<http:listener doc:name="Listener" doc:id="40a1668a-8feb-498a-b209-563302fcc891" config-ref="HTTP_Listener_config" path="/sales"/>
+		<ee:transform doc:name="Transform Message" doc:id="88e07102-12a6-4d98-b0fb-fac06feee9b2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+-&#45;&#45;
+{}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:upsert objectType="Account" externalIdFieldName="Id" doc:name="Upsert" doc:id="77498115-3fa1-4e23-8b7e-c50d428987ba" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="68caa8a1-ba09-42d7-be77-92f1387f3671" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow> -->
+	</mule>

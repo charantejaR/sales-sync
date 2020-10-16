@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:audit-logger="http://www.mulesoft.org/schema/mule/audit-logger"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/audit-logger http://www.mulesoft.org/schema/mule/audit-logger/current/mule-audit-logger.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="64354b66-2dba-44ce-8b13-53c6eb84f6bf" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config_portal1" doc:name="Salesforce Config" doc:id="598ada1d-4529-4802-9c97-837a06395d78">
+		<salesforce:oauth-user-pass-connection consumerKey="3MVG92DxHaawSd0luAabE5ir8xt_wTfL6Ny9rJPS3dzeWsLfJWjv1S9G9zuGqcEVY6EqkVJ6tA5lXknsC_TlS" consumerSecret="93C484DDB71F675BE77C682E4BB775006623BF6A8F854AAEC14E67BEE2B0FE85" username="charan.tejarachaneni@eversana.com.eversana.portal1" password="CharaN@123" securityToken="ovbQxGe9ERergyxeMcpue2Q1" tokenEndpoint="https://test.salesforce.com/services/oauth2/token" />
+	
+</salesforce:sfdc-config>
+	<salesforce:sfdc-config name="Salesforce_Config_Portal_Uat" doc:name="Salesforce Config" doc:id="aba7eff0-6453-43ee-92f8-785238604a46" >
+		<salesforce:oauth-user-pass-connection consumerKey="3MVG9aFryxgomHTZBf2tPqyBm7VRvOkC.bfgiTmfTGqZEOHLF_cniJ.ILyQ.XVw8.VnplHqNWNiQUR_2b98zK" consumerSecret="EDEB5AFE37B12459130A93813328B80530638AEEE9CF09B731673C8880964B54" username="charan.tejarachaneni@eversana.com.eversana.portaluat" password="CharaN@1234" securityToken="56xFcYLKFWkqh1WSsBbwie9Gk" tokenEndpoint="https://test.salesforce.com/services/oauth2/token" />
+	
+</salesforce:sfdc-config>
+	<os:object-store name="UpdateTime_Object_store" doc:name="Object store" doc:id="04011262-1798-40e2-9a5d-2d0ff3ee5ccf" />
+	<!-- <flow name="contactInsertFlow" doc:id="ce4a307f-2bb6-441e-8dfc-88e051c73e62" >
+		<try doc:name="Try" doc:id="f0f742b8-a834-478f-92c7-0cdf3b9d66e0">
+						<salesforce:query doc:name="QueryContactFromProd" doc:id="65616164-552d-42d4-8772-5a15f32a6416" config-ref="Salesforce_Config_Portal_Uat">
+						<salesforce:salesforce-query><![CDATA[SELECT LastName,Email,Id FROM Contact where AccountId=':accountId']]></salesforce:salesforce-query>
+						<salesforce:parameters><![CDATA[#[output application/java
+-&#45;&#45;
+{
+	"accountId" : vars.accountId
+}]]]></salesforce:parameters>
+					</salesforce:query>
+						<ee:transform doc:name="Transform Message" doc:id="85166ba8-1955-4227-bb98-5fb334cb80f2">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+-&#45;&#45;
+payload map {
+	LastName: $.LastName,
+	Name: $.Name,
+	Email: $.Email,
+	AccountId: vars.salesAccountId,
+	"External_Contact_Id__c": $.Id,
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="68674fca-aaf5-407e-9d49-dcae29b9c582" message="response paylod before contact : #[payload]" />
+						<salesforce:upsert doc:name="UpsertContact" doc:id="ef1d3094-acb5-4e92-81c6-d019f33b5afa" config-ref="Salesforce_Config_portal1" objectType="Contact" externalIdFieldName="External_Contact_Id__c" target="ContactId" targetValue="#[payload.items[0].payload.id]" />
+						<error-handler>
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="59eebdbb-5b77-4264-8fa9-a6df08c1463c" type="ANY">
+								<logger level="INFO" doc:name="Logger" doc:id="b757f785-30a0-4e2e-8e90-fc72d0c61ef5" message="NO CONTACTS FOUND OR CONNECTION ISSUE OCCURED" />
+							</on-error-continue>
+						</error-handler>
+					</try>
+	</flow> -->
+	<salesforce:sfdc-config name="Salesforce_Config_docs" doc:name="Salesforce Config" doc:id="c76111e3-d4db-401a-8dd2-0477433e1da7" >
+		<salesforce:oauth-user-pass-connection consumerKey="3MVG9ogKZdEXNjz1r3.A6o1O2ht8Th3FpdB04LHRJZE6y3Kfqn1KknYOtoR52BKaR.4pgX0tY7tXFQMbTYqYH" consumerSecret="517512FC6ADEAE566D6978C4DEC6C5DBEC97803411935F27D7FE21707F29889C" username="charan.tejarachaneni@eversana.com.docx" password="CharaN@123" tokenEndpoint="https://test.salesforce.com/services/oauth2/token" securityToken="QHixxsipYcveyxmYvwxBlU8F"/>
+	</salesforce:sfdc-config>
+	<flow name="accountObjectBatchFlow" doc:id="00d666d4-9fc8-4378-92f4-1675992f28d7" >
+		<batch:job jobName="evr-sales-sync-apiBatch_Job" doc:id="6ef01c19-e0e9-45ff-b5ea-744cc8c57b13" maxFailedRecords="-1">
+			<batch:process-records>
+				<batch:step name="insert_object" doc:id="e0393d9a-530b-453c-bbbd-74defad7f5b9" acceptPolicy="ALL">
+					<ee:transform doc:name="Transform Message" doc:id="df854aee-1805-4271-9b5a-b6066af3459b">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="accountId"><![CDATA[%dw 2.0
+output application/java
+---
+payload.Id]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<ee:transform doc:name="Transform Message" doc:id="b2bb9257-eec9-4337-86ec-393c51aad72a">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java 
+---
+[(payload  - ('LastModifiedDate') -'Id' - 'CreatedDate' - 'CreatedById' - 'LastModifiedById' - 'SystemModstamp' - 'LastActivityDate' - 'LastViewedDate' - '' ++ {HealthCloudGA__SourceSystemId__c :vars.accountId} ) mapObject {
+    ($$) : ($ as Boolean) default $
+} ]]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<logger level="INFO" doc:name="Logger" doc:id="bddf580f-978c-467a-ab08-16010fbde027" message='record: #[write(payload,"application/json")]'/>
+					<salesforce:upsert doc:name="UpsertAccount" doc:id="598ada1d-4529-4802-9c97-837a06395d78" config-ref="Salesforce_Config_docs" objectType="Account" externalIdFieldName="HealthCloudGA__SourceSystemId__c"/>
+					<validation:is-true doc:name="Is true" doc:id="65b93774-d773-4aeb-844b-a42572835105" expression="#[payload.successful]" message="record failed to insert into Salesforce"/>
+					<logger level="INFO" doc:name="Logger" doc:id="157e550e-9724-4f2d-a1ea-2dccac96b831" message="old id : #[vars.accountId]  ==== #[vars.salesAccountId] =====  #[vars.ContactId]" />
+				</batch:step>
+				<batch:step name="process_failed" doc:id="55b90646-e362-4675-82bd-133dea93aaed" acceptPolicy="ONLY_FAILURES">
+					<logger level="INFO" doc:name="Logger" doc:id="82663e2f-9b30-423e-b120-f641e407d17c" message="failed ones: #[payload.id]"/>
+				</batch:step>
+			
+</batch:process-records>
+		</batch:job>
+	</flow>
+	<flow name="evr-sales-sync-apiFlow1" doc:id="10e6e159-152b-44ca-a572-29f8f723407b" >
+		<http:listener doc:name="Listener" doc:id="1bb6fe5b-3a36-48b1-8f4c-bc6b35e82602" config-ref="HTTP_Listener_config" path="sales2"/>
+		<os:retrieve doc:name="Retrieve" doc:id="52308196-0158-44a2-9c17-f201fc7d044e" key="recentUpdatedDate" objectStore="UpdateTime_Object_store" target="recentUpdatedDate">
+			<os:default-value ><![CDATA[2020-08-11T06:52:18.000Z]]></os:default-value>
+		</os:retrieve>
+		<salesforce:query doc:name="Portal UAT Query" doc:id="ecc2b35c-e675-40d0-ad77-885bef66f532" config-ref="Salesforce_Config_Portal_Uat">
+			<salesforce:salesforce-query ><![CDATA[select Id,MasterRecordId,RecordTypeId,Name,LastName,FirstName,Salutation,MiddleName,Suffix,Type,ParentId,BillingStreet,BillingCity,BillingState,BillingPostalCode,BillingCountry,BillingLatitude,BillingLongitude,BillingGeocodeAccuracy,ShippingStreet,ShippingCity,ShippingState,ShippingPostalCode,ShippingCountry,ShippingLatitude,ShippingLongitude,ShippingGeocodeAccuracy,Phone,Website,Industry,Description,OwnerId,CreatedDate,CreatedById,LastModifiedDate,LastModifiedById,SystemModstamp,LastActivityDate,LastViewedDate,LastReferencedDate,PersonContactId,PersonMailingStreet,PersonMailingCity,PersonMailingState,PersonMailingPostalCode,PersonMailingCountry,PersonMailingLatitude,PersonMailingLongitude,PersonMailingGeocodeAccuracy,PersonMobilePhone,PersonEmail,PersonTitle,PersonDepartment,PersonLastCURequestDate,PersonLastCUUpdateDate,PersonEmailBouncedReason,PersonEmailBouncedDate,PersonIndividualId,Jigsaw,JigsawCompanyId,AccountSource,SicDesc,HealthCloudGA__Active__c,HealthCloudGA__CarePlan__c,HealthCloudGA__Disabled__c,HealthCloudGA__EnrollmentType__c,HealthCloudGA__IndividualId__c,HealthCloudGA__IndividualType__c,HealthCloudGA__Institution__c,HealthCloudGA__LowIncome__c,HealthCloudGA__MedicaidEligibilityStatus__c,HealthCloudGA__MedicalRecordNumber__c,HealthCloudGA__MedicareEnrollee__c,HealthCloudGA__OREC__c,HealthCloudGA__PayerType__c,HealthCloudGA__PrimaryContact__c,HealthCloudGA__SourceSystemId__c,HealthCloudGA__SourceSystem__c,HealthCloudGA__TaxId__c,HealthCloudGA__Age__pc,HealthCloudGA__BirthDate__pc,HealthCloudGA__ConvertedReferrals__pc,HealthCloudGA__CountryOfBirth__pc,HealthCloudGA__DeceasedDate__pc,HealthCloudGA__Gender__pc,HealthCloudGA__IndividualId__pc,HealthCloudGA__IndividualType__pc,HealthCloudGA__MedicalRecordNumber__pc,HealthCloudGA__PreferredName__pc,HealthCloudGA__PrimaryLanguage__pc,HealthCloudGA__ReferrerScore__pc,HealthCloudGA__SecondaryLanguage__pc,HealthCloudGA__SourceSystemId__pc,HealthCloudGA__SourceSystem__pc,HealthCloudGA__TotalReferrals__pc from  
+ Account where LastModifiedDate > :lastModifiedDate ORDER BY LastModifiedDate ASC]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	"lastModifiedDate" : vars.recentUpdatedDate
+}]]]></salesforce:parameters>
+		
+</salesforce:query>
+		<os:store doc:name="Store" doc:id="cc77c412-0702-4586-9855-d2c9f5b61cc4" key="recentUpdatedDate" objectStore="UpdateTime_Object_store" failOnNullValue="false">
+			<os:value ><![CDATA[#[max(payload map $.LastModifiedDate)]]]></os:value>
+		</os:store>
+		<flow-ref doc:name="accountObjectBatchFlow Flow Reference" doc:id="26b637e7-ec79-42e5-a97b-626941f46318" name="accountObjectBatchFlow" />
+		<ee:transform doc:name="Transform Message" doc:id="b0c5da95-8a86-4642-84ff-a294ad025b52" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	
+</flow>
+<!-- 	<flow name="evr-sales-sync-apiFlow" doc:id="2666ef75-a0ef-4698-8ef8-9ec80d8e3e85" >
+		<http:listener doc:name="Listener" doc:id="68ab0482-f2a4-414a-a232-69d3bccdfc1a" config-ref="HTTP_Listener_config" path="/sales"/>
+		<ee:transform doc:name="Transform Message" doc:id="8a4eee5c-74f9-4207-b1a0-34e5e4d2d1fe" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+-&#45;&#45;
+{}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:upsert objectType="Account" externalIdFieldName="Id" doc:name="Upsert" doc:id="735fc3c9-ab74-4357-95ec-eae211eb10e9" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="e2dc5fff-0b2a-4aae-b2e8-d108f71da6f4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow> -->
+</mule>
